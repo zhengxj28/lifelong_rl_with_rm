@@ -2,6 +2,10 @@
 Examine the effect of LLRM model in MineCraft
 '''
 
+import os, time, sys, random
+
+sys.path.append("..")
+sys.path.append("../..")
 from src._my_lifelong import *
 from src._my_plot_assistant import *
 
@@ -13,13 +17,14 @@ if __name__ == '__main__':
 
     is_plot = False
     if is_plot:
-        plot_lifelong(title="Experiment5",
+        plot_lifelong(title="Four Room",
                       data_name=data_name,
-                      alg_list=["QRM", "QRMrs", "TQRM", "TQRMrs"],
+                      alg_list=["QRM", "QRMrs", "TQRMworst", "TQRMbest"],
                       plot_task_index=[0, 2, 4],
                       to_steps=True,
                       save_fig=True,
                       use_normalize=True,
+                      directory='data',
                       max_episode_length=500)
     else:
         map_i = 0
@@ -50,7 +55,7 @@ if __name__ == '__main__':
         save_data = True
         # for algorithm in ["TQRM","TQRMrs"]:
         # for algorithm in ["advisor"]:
-        for algorithm in ["QRM","QRMrs","TQRM"]:
+        for algorithm in ["QRM","QRMrs","TQRMworst","TQRMbest"]:
             run_lifelong(tasks,
                          steps_num=steps_num,
                          repeated_test_times=repeated_test_times,

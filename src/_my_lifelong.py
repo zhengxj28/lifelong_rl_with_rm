@@ -26,7 +26,7 @@ class LifelongLearning():
                                        transfer=None, use_rs="rs" in algorithm)
         # algorithm="TQRM" means QRM with knowledge transfer, i.e. LSRM
         if algorithm in ["QRM", "QRMrs", "equiv", "TQRM", "advisor", "TQRM_advisor", "TQRMrs",
-                         "TQRMaverage", "TQRMmax", "TQRMleft", "TQRMright", "boolean"]:
+                         "TQRMaverage", "TQRMmax", "TQRMleft", "TQRMright", "TQRMworst", "TQRMbest", "boolean"]:
             self.algorithm = algorithm  # algorithm is "QRM","equiv","TQRM","advisor","TQRM_advisor"
         else:  # default algorithm
             self.algorithm = "equiv"
@@ -139,6 +139,38 @@ class LifelongLearning():
                 return Q
             elif formula[0] == 'then':
                 return Q1
+            ################# worst composition ############
+            elif self.algorithm=="TQRMworst":
+                if formula[0] == 'or':
+                    return (Q1 + Q2) / 2
+                elif formula[0] == 'and':
+                    Q = np.zeros([self.state_num, self.action_num])
+                    Q1_max = np.max(Q1, axis=1)
+                    Q2_max = np.max(Q2, axis=1)
+                    for s in range(self.state_num):
+                        if Q1_max[s] > Q2_max[s]:
+                            Q[s, :] = Q1[s, :]
+                        else:
+                            Q[s, :] = Q2[s, :]
+                    return Q
+                elif formula[0] == 'then':
+                    return Q2
+            ############## best composition ###############
+            elif self.algorithm=="TQRMbest":
+                if formula[0] == 'or':
+                    return (Q1 + Q2) / 2
+                elif formula[0] == 'and':
+                    Q = np.zeros([self.state_num, self.action_num])
+                    Q1_max = np.max(Q1, axis=1)
+                    Q2_max = np.max(Q2, axis=1)
+                    for s in range(self.state_num):
+                        if Q1_max[s] > Q2_max[s]:
+                            Q[s, :] = Q1[s, :]
+                        else:
+                            Q[s, :] = Q2[s, :]
+                    return Q
+                elif formula[0] == 'then':
+                    return Q1
         else:
             return self.memory_rm.build_one_Q().eval
         #########################################################
@@ -293,7 +325,7 @@ def run_lifelong(tasks,
                  algorithm,
                  save_data=True,
                  data_name="",
-                 directory="data2/"):
+                 directory="data/"):
     if type(tasks[0]) != list:  # if tasks=[task1,task2,...], then convert to [[task1],[task2],...]
         temp_tasks = []
         for formula in tasks:
@@ -301,6 +333,7 @@ def run_lifelong(tasks,
         tasks = temp_tasks
     plot_result = np.zeros([len(tasks), repeated_test_times, steps_num])
     for t in range(repeated_test_times):  # lifelong learning
+        print("Independent Trail", t)
         np.random.seed(t)
         lifelong_model = LifelongLearning(env,
                                           propositions,

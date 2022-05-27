@@ -5,7 +5,7 @@
       <paths name="zhengxuejing@222.200.177.150:21022 key">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/zhengxuejing/LSRM" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/zhengxuejing/lifelong_rl_with_rm" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

@@ -8,10 +8,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class Tabular_Q():
-    def __init__(self,NUM_STATES, NUM_ACTIONS):
+    def __init__(self, shape):
         r_min,r_max=1,1
-        self.eval=np.random.uniform(r_min, r_max, [NUM_STATES, NUM_ACTIONS])
-        self.tar=np.random.uniform(r_min, r_max, [NUM_STATES, NUM_ACTIONS])
+        self.eval=np.random.uniform(r_min, r_max, shape)
+        self.tar=np.random.uniform(r_min, r_max, shape)
 
 
 class Net(nn.Module):
