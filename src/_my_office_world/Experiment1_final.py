@@ -20,7 +20,7 @@ if __name__ == '__main__':
                           to_steps=True,
                           save_fig=True,
                           use_normalize=True,
-                          directory="data2/")
+                          directory="data/")
     else:
         # for ij in [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)]:
         # for ij in [(4,1),(4,2),(4,3)]:

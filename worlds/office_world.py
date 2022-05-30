@@ -21,6 +21,8 @@ class OfficeWorld:
         self._load_map()
         self.state_num=12*9
         self.action_num=4
+        self.goal_num=8
+        self.goal2id = {'a':0, 'b':1, 'c':2, 'd':3, 'e':4, 'f':5, 'g':6, 'n':7}
         self.env_game_over = False
 
     def execute_action(self, a):

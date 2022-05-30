@@ -14,6 +14,8 @@ class RewardMachine():
         self.potentials = self.value_iteration()  # dict: {u_state: value}
         self.state_num = self.env.get_features().size  # state_num of the environment (not the RM)
         self.action_num = len(self.env.get_actions())
+        self.goal_num = self.env.goal_num
+        self.goal2id = self.env.goal2id
         self.label_num = len(self.dfa.label_set)
         if algorithm is not None:
             self.algorithm = algorithm

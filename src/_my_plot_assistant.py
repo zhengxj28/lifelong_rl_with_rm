@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import os
 
 
 def smooth(array, weight):
@@ -22,7 +23,7 @@ def reward2step(plot_reward, max_episode_length):
 
 
 def plot_eval_transfer(title, data_name, alg_list, plot_task_index, to_steps=True, save_fig=True,
-                       use_normalize=True, max_episode_length=200, directory="data2/"):
+                       use_normalize=True, max_episode_length=200, directory="data/"):
     weight = 0.999
     plot_list = []
     legend_list = ["QRM", "QRM+RS", "Average Composition", "Max Composition", "Left Composition", "Right Composition"]
@@ -96,13 +97,14 @@ def plot_eval_transfer(title, data_name, alg_list, plot_task_index, to_steps=Tru
     mark_inset(ax, axins, loc1=2, loc2=4, fc="none", ec='k', lw=1)
 
     if save_fig: plt.savefig(
-        r"E:/Machine Learning/RL_implementation/Reward_Machines/RMTL_6/Figure/" + data_name + '.png')
+        r"E:/Machine Learning/RL_implementation/Reward_Machines/RMTL_6/Figure/" + data_name + '.pdf')
     plt.show()
 
 
 def plot_op_laws(title, data_name, data_index,
-                 to_steps=True, save_fig=True, use_normalize=True, directory="data2/", max_episode_length=200):
+                 to_steps=True, save_fig=True, use_normalize=True, directory="data/", max_episode_length=200):
     legend_list = ["QRM", "QRM+RS", "Best Representation", "Other Representation(s)"]
+
     plot_qrm = np.load(directory + data_name + "_" + str(data_index[0]) + "QRMnorm.npy")
     plot_qrmrs = np.load(directory + data_name + "_" + str(data_index[0]) + "QRMrsnorm.npy")
     plot_dict = {}
@@ -141,27 +143,31 @@ def plot_op_laws(title, data_name, data_index,
             linewidth = 2
             plt.plot(plot_ave, color=color_list[curve_i], linewidth=linewidth, label=legend_list[curve_i])
             plt.legend(bbox_to_anchor=(0.5, 1.06), loc="lower center", ncol=2 + len(plot_dict))
-    if save_fig: plt.savefig(
-        r"/Figure/" + data_name + '.png')
+    if save_fig: plt.savefig(os.path.join(projectDir, "Figure", directory + '.pdf'))
     plt.show()
 
 
-def plot_lifelong(title, data_name, alg_list, plot_task_index,
-                  to_steps=True, save_fig=True, use_normalize=False, directory="data2/", max_episode_length=200):
+def plot_lifelong(title, directory, alg_list, plot_task_index,
+                  to_steps=True, save_fig=True, use_normalize=False, max_episode_length=200):
     plot_list = []
     # legend_list=alg_list
-    legend_list = ["QRM", "QRM+RS", "LSRM", "LSRM+RS"]
+    legend_list = ["QRM", "QRM+RS", "LSRM-worst", "LSRM-best", "Boolean"]
+    projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
+    if to_steps:
+        data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory, "steps")
+    else:
+        data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory, "reward")
     for alg_name in alg_list:
         # if use_normalize and alg_name not in ["QRM","QRMrs"]:
         #     plot_list.append(np.load(directory + data_name + alg_name + "norm.npy"))
         if use_normalize:
-            plot_list.append(np.load(directory + data_name + alg_name + "norm.npy"))
+            plot_list.append(np.load(os.path.join(data_path, alg_name + "norm.npy")))
         else:
-            plot_list.append(np.load(directory + data_name + alg_name + ".npy"))
+            plot_list.append(np.load(os.path.join(data_path, alg_name + ".npy")))
     # plot_list[i].shape=[len(tasks),repeated_test_times,steps_num]
     subplot_row, subplot_col, subplot_index = 1, len(plot_task_index), 0
     tasks_num, total_test_times, steps_num = plot_list[0].shape
-    color_list = ["blue", "purple", "red", "green", "green", "hotpink", "chocolate"]
+    color_list = ["blue", "purple", "red", "green", "hotpink", "chocolate"]
 
     plt.figure(figsize=(6 * subplot_col, 4))
     plt.clf()
@@ -176,10 +182,10 @@ def plot_lifelong(title, data_name, alg_list, plot_task_index,
         for algorithm_i in range(len(plot_list)):
             plot_i = plot_list[algorithm_i][task_i, :, :]
             repeated_test_times, steps_num = plot_i.shape
-            if to_steps:
-                plt.axis([0, steps_num, 0, max_episode_length + 10])
-                for n in range(repeated_test_times):
-                    plot_i[n] = reward2step(plot_i[n], max_episode_length)
+            # if to_steps:
+            #     plt.axis([0, steps_num, 0, max_episode_length + 10])
+            #     for n in range(repeated_test_times):
+            #         plot_i[n] = reward2step(plot_i[n], max_episode_length)
             plot_ave = np.average(plot_i, axis=0)
             plot_up = np.max(plot_i, axis=0)
             plot_down = np.min(plot_i, axis=0)
@@ -198,6 +204,5 @@ def plot_lifelong(title, data_name, alg_list, plot_task_index,
                 plt.plot(plot_ave, color=color_list[algorithm_i], linewidth=linewidth)
         if subplot_index == subplot_col // 2 + 1:
             plt.legend(bbox_to_anchor=(0.5, 1.06), loc="lower center", ncol=len(plot_list))
-    if save_fig: plt.savefig(
-        r"Figure/" + data_name + '.png')
+    if save_fig: plt.savefig(os.path.join(projectDir, "Figure", directory + '.pdf'))
     plt.show()

@@ -8,23 +8,21 @@ sys.path.append("..")
 sys.path.append("../..")
 from src._my_lifelong import *
 from src._my_plot_assistant import *
+from src.params import Parameters
 
 if __name__ == '__main__':
     from worlds.craft_world import *
     import matplotlib.pyplot as plt
 
-    data_name = "four_room"
-
-    is_plot = False
+    is_plot = 0
     if is_plot:
         plot_lifelong(title="Four Room",
-                      data_name=data_name,
-                      alg_list=["QRM", "QRMrs", "TQRMworst", "TQRMbest"],
-                      plot_task_index=[0, 2, 4],
+                      directory="four_room",
+                      alg_list=["QRM", "QRMrs", "TQRMworst", "TQRMbest", "boolean"],
+                      plot_task_index=[0,1,2],
                       to_steps=True,
                       save_fig=True,
                       use_normalize=True,
-                      directory='data',
                       max_episode_length=500)
     else:
         map_i = 0
@@ -40,32 +38,31 @@ if __name__ == '__main__':
         d = ('eventually', 'd')
         # e = ('eventually', 'e')
         # f = ('eventually', 'f')
-        tasks = [[a,b,('and',c,d)],
-                 [('and',a,b), ('or', c,d)],
-                 [('then',('and',a,b),('and',c,d))],
+        tasks = [[a, b, ('and', c, d)],
+                 [('and', a, b), ('or', c, d)],
+                 [('then', ('and', a, b), ('and', c, d))],
                  ]
-        steps_num = 400000
         repeated_test_times = 20
         propositions = ['a', 'b', 'c', 'd', ]
         label_set = ['a', 'b', 'c', 'd', '']
-        gamma = 0.9
-        alpha = 1.0
-        epsilon = 0.1
-        max_episode_length = 500
-        save_data = True
+
+        params = Parameters(steps_num=400000,
+                            gamma=0.9,
+                            alpha=1.0,
+                            epsilon=0.1,
+                            max_episode_length=500,
+                            use_normalize=True)
+
         # for algorithm in ["TQRM","TQRMrs"]:
-        # for algorithm in ["advisor"]:
-        for algorithm in ["QRM","QRMrs","TQRMworst","TQRMbest"]:
+        # for algorithm in ["boolean"]:
+        for algorithm in ["QRM","QRMrs","TQRMworst","TQRMbest","boolean"]:
+            print(algorithm)
             run_lifelong(tasks,
-                         steps_num=steps_num,
                          repeated_test_times=repeated_test_times,
                          env=craft_env,
                          propositions=propositions,
                          label_set=label_set,
-                         gamma=gamma,
-                         alpha=alpha,
-                         epsilon=epsilon,
-                         max_episode_length=max_episode_length,
+                         params=params,
                          algorithm=algorithm,
-                         save_data=save_data,
-                         data_name=data_name)
+                         save_data=True,
+                         directory="four_room")

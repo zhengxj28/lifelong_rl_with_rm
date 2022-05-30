@@ -1,29 +1,32 @@
 from src._my_reward_machine import RewardMachine
 from src.dfa import DFA
 from src._my_network import device
+from src.transfer_utils import *
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
-import time
-
-use_normalize = True  # we always normalize Q-values during transferring
+import time, os
 
 
 class LifelongLearning():
-    def __init__(self, env, propositions, label_set, gamma, alpha, epsilon, algorithm):
+    def __init__(self, env, propositions, label_set, params, algorithm, use_normalize=True):
         self.q_network_iteration = 1
         self.env = env
         self.plot_reward = []
         self.plot_steps = []  # steps to complete the task
-        self.gamma = gamma
-        self.alpha = alpha
-        self.epsilon = epsilon
+        self.gamma = params.gamma
+        self.alpha = params.alpha
+        self.epsilon = params.epsilon
+        self.use_normalize = use_normalize
         self.state_num = self.env.get_features().size  # state_num of the environment (not the RM)
         self.action_num = len(self.env.get_actions())
         self.memory_rm = RewardMachine(env,
                                        dfa=DFA(ltl_formula='True', propositions=propositions, label_set=label_set),
-                                       transfer=None, use_rs="rs" in algorithm)
+                                       transfer=None,
+                                       use_rs="rs" in algorithm,
+                                       algorithm=algorithm
+                                       )
         # algorithm="TQRM" means QRM with knowledge transfer, i.e. LSRM
         if algorithm in ["QRM", "QRMrs", "equiv", "TQRM", "advisor", "TQRM_advisor", "TQRMrs",
                          "TQRMaverage", "TQRMmax", "TQRMleft", "TQRMright", "TQRMworst", "TQRMbest", "boolean"]:
@@ -59,8 +62,8 @@ class LifelongLearning():
                 dqn = self.memory_rm.Q[u]
                 self.optimizer[u] = torch.optim.Adam(dqn.eval_net.parameters(), lr=self.alpha)
         if self.algorithm in ["QRM", "QRMrs"]:
-            self.memory_rm.initialize_Q()  # learn from scratch
-        if "TQRM" in self.algorithm:
+            self.memory_rm.initialize_Q()  # update_q_function from scratch
+        if ("TQRM" in self.algorithm) or self.algorithm == "boolean":
             for u in new_states:
                 self.memory_rm.Q[u].eval = self.non_equiv_transfer(u, new_states)
                 self.memory_rm.Q[u].tar = self.memory_rm.Q[u].eval.copy()
@@ -78,26 +81,34 @@ class LifelongLearning():
                 else:
                     action = np.random.randint(0, self.action_num)
             else:
-                action = int(self.memory_rm.Q[u].eval[state].argmax())
+                if self.algorithm == "boolean":
+                    action = int(self.memory_rm.Q[u].eval[:, state, :].max(axis=0).argmax())
+                else:
+                    action = int(self.memory_rm.Q[u].eval[state].argmax())
             return action
         else:
-            state = torch.unsqueeze(torch.FloatTensor(state), 0).to(device)  # get a 1D array
-            if np.random.uniform() < self.epsilon:  # random policy
-                # if "advisor" in self.algorithm:
-                action = np.random.randint(0, self.action_num)
-                # action = action if ENV_A_SHAPE == 0 else action.reshape(ENV_A_SHAPE)
-            else:  # greedy policy
-                action_value = self.memory_rm.Q[u].eval_net(state)
-                action = torch.max(action_value, 1)[1].data.cpu().numpy()
-                # action = action[0] if ENV_A_SHAPE == 0 else action.reshape(ENV_A_SHAPE)
-            return action
+            raise ValueError("Deep methods unavaliable. To be implemented.")
+            # state = torch.unsqueeze(torch.FloatTensor(state), 0).to(device)  # get a 1D array
+            # if np.random.uniform() < self.epsilon:  # random policy
+            #     # if "advisor" in self.algorithm:
+            #     action = np.random.randint(0, self.action_num)
+            #     # action = action if ENV_A_SHAPE == 0 else action.reshape(ENV_A_SHAPE)
+            # else:  # greedy policy
+            #     action_value = self.memory_rm.Q[u].eval_net(state)
+            #     action = torch.max(action_value, 1)[1].data.cpu().numpy()
+            #     # action = action[0] if ENV_A_SHAPE == 0 else action.reshape(ENV_A_SHAPE)
+            # return action
 
     def non_equiv_transfer(self, u, new_states):  # return np.array
         if u not in new_states:
             Q = self.memory_rm.Q[u].eval.copy()
-            if use_normalize:
+            if self.use_normalize:
                 from sklearn.preprocessing import scale
-                Q = scale(Q, axis=1, with_mean=True, with_std=False) + self.memory_rm.use_rs  # normalize
+                if Q.ndim == 2:
+                    Q = scale(Q, axis=1, with_mean=True, with_std=False) + self.memory_rm.use_rs  # normalize
+                else:
+                    for goal_id in range(Q.shape[0]):
+                        Q[goal_id, :, :] = scale(Q[goal_id, :, :], axis=1, with_mean=True, with_std=False)
             return Q
 
         formula = self.memory_rm.dfa.state2ltl[u]
@@ -109,94 +120,83 @@ class LifelongLearning():
             Q2 = self.non_equiv_transfer(u2, new_states)
             ########### for Experiment 1,2 only ################
             if self.algorithm == "TQRMaverage":
-                return (Q1 + Q2) / 2
+                return average_transfer(Q1, Q2)
             elif self.algorithm == "TQRMmax":
-                Q = np.zeros([self.state_num, self.action_num])
-                Q1_max = np.max(Q1, axis=1)
-                Q2_max = np.max(Q2, axis=1)
-                for s in range(self.state_num):
-                    if Q1_max[s] > Q2_max[s]:
-                        Q[s, :] = Q1[s, :]
-                    else:
-                        Q[s, :] = Q2[s, :]
-                return Q
+                return max_transfer(Q1, Q2)
             elif self.algorithm == "TQRMleft":
-                return Q1
+                return left_transfer(Q1, Q2)
             elif self.algorithm == "TQRMright":
-                return Q2
-            ################# TQRM ##########################
-            if formula[0] == 'and':
-                return (Q1 + Q2) / 2
-            elif formula[0] == 'or':
-                Q = np.zeros([self.state_num, self.action_num])
-                Q1_max = np.max(Q1, axis=1)
-                Q2_max = np.max(Q2, axis=1)
-                for s in range(self.state_num):
-                    if Q1_max[s] > Q2_max[s]:
-                        Q[s, :] = Q1[s, :]
-                    else:
-                        Q[s, :] = Q2[s, :]
-                return Q
-            elif formula[0] == 'then':
-                return Q1
+                return right_transfer(Q1, Q2)
+            ################# TQRM, best composition ##########################
+            elif self.algorithm in ["TQRM", "TQRMbest"]:
+                if formula[0] == 'and':
+                    return average_transfer(Q1, Q2)
+                elif formula[0] == 'or':
+                    return max_transfer(Q1, Q2)
+                elif formula[0] == 'then':
+                    return left_transfer(Q1, Q2)
             ################# worst composition ############
-            elif self.algorithm=="TQRMworst":
+            elif self.algorithm == "TQRMworst":
                 if formula[0] == 'or':
-                    return (Q1 + Q2) / 2
+                    return average_transfer(Q1, Q2)
                 elif formula[0] == 'and':
-                    Q = np.zeros([self.state_num, self.action_num])
-                    Q1_max = np.max(Q1, axis=1)
-                    Q2_max = np.max(Q2, axis=1)
-                    for s in range(self.state_num):
-                        if Q1_max[s] > Q2_max[s]:
-                            Q[s, :] = Q1[s, :]
-                        else:
-                            Q[s, :] = Q2[s, :]
-                    return Q
+                    return max_transfer(Q1, Q2)
                 elif formula[0] == 'then':
-                    return Q2
-            ############## best composition ###############
-            elif self.algorithm=="TQRMbest":
-                if formula[0] == 'or':
-                    return (Q1 + Q2) / 2
-                elif formula[0] == 'and':
-                    Q = np.zeros([self.state_num, self.action_num])
-                    Q1_max = np.max(Q1, axis=1)
-                    Q2_max = np.max(Q2, axis=1)
-                    for s in range(self.state_num):
-                        if Q1_max[s] > Q2_max[s]:
-                            Q[s, :] = Q1[s, :]
-                        else:
-                            Q[s, :] = Q2[s, :]
-                    return Q
+                    return right_transfer(Q1, Q2)
+            ############# boolean task algebra #############
+            elif self.algorithm == "boolean":
+                if formula[0] == 'and':
+                    return boolean_and(Q1, Q2)
+                elif formula[0] == 'or':
+                    return boolean_or(Q1, Q2)
                 elif formula[0] == 'then':
-                    return Q1
+                    return self.memory_rm.build_one_Q().eval
         else:
             return self.memory_rm.build_one_Q().eval
         #########################################################
 
     def non_equiv_transfer_deep(self, u, new_states):
-        return self.memory_rm.build_one_Q()
+        raise ValueError("Deep methods unavaliable. To be implemented.")
+        # return self.memory_rm.build_one_Q()
 
-    def learn(self, state, action, state_, event):
+    def update_q_function(self, state, action, state_, event):
         for u in self.memory_rm.dfa.state2ltl:
             if self.memory_rm.is_terminal_state(u): continue
             u_ = self.memory_rm.get_next_state(u, event)
             r = self.memory_rm.get_reward(u, u_, state, action, state_, is_training=True)
             if self.memory_rm.is_terminal_state(u_):
-                self.memory_rm.Q[u].eval[state, action] = r
-            else:  # use Q.tar to update Q.eval
-                # here we do not use Q.tar
-                self.memory_rm.Q[u].eval[state, action] += \
-                    self.alpha * (
-                            r + self.gamma * self.memory_rm.Q[u_].eval[state_, :].max() -
-                            self.memory_rm.Q[u].eval[state, action]
-                    )
-                # self.memory_rm.Q[u].eval[state, action] += \
-                #     self.alpha * (
-                #             r + self.gamma * self.memory_rm.Q[u_].tar[state_, :].max() -
-                #             self.memory_rm.Q[u].eval[state, action]
-                #     )
+                if self.algorithm == "boolean":
+                    goal_id = self.memory_rm.goal2id[event]
+                    self.memory_rm.Q[u].eval[goal_id, state, action] = r
+                else:
+                    self.memory_rm.Q[u].eval[state, action] = r
+            else:
+                if self.algorithm == "boolean":
+                    # Q is a dict, each Q-function has shape=[goal_num, state_num, action_num]
+                    r_vec = np.zeros([self.memory_rm.goal_num])
+                    try:
+                        goal_id = self.memory_rm.goal2id[event]
+                        r_vec[goal_id] = r
+                    except:
+                        pass
+                    self.memory_rm.Q[u].eval[:, state, action] += \
+                        self.alpha * (
+                                r_vec + self.gamma * self.memory_rm.Q[u_].eval[:, state_, :].max(axis=1) -
+                                self.memory_rm.Q[u].eval[:, state, action]
+                        )
+                else:
+                    # Q is a dict, each Q-function has shape=[state_num, action_num]
+                    self.memory_rm.Q[u].eval[state, action] += \
+                        self.alpha * (
+                                r + self.gamma * self.memory_rm.Q[u_].eval[state_, :].max() -
+                                self.memory_rm.Q[u].eval[state, action]
+                        )
+                    # use Q.tar to update Q.eval
+                    # self.memory_rm.Q[u].eval[state, action] += \
+                    #     self.alpha * (
+                    #             r + self.gamma * self.memory_rm.Q[u_].tar[state_, :].max() -
+                    #             self.memory_rm.Q[u].eval[state, action]
+                    #     )
 
     def update_buffer(self, state, action, reward, next_state, label):
         # u, u_ is the u-state, next u-state of reward machine
@@ -248,13 +248,15 @@ class LifelongLearning():
             self.optimizer[u].step()
         self.learn_step_counter += 1
 
-    def qrm_run(self, steps_num, max_episode_length, phase_tasks):
+    def qrm_run(self, params, phase_tasks):
+        max_episode_length = params.max_episode_length
+        steps_num = params.steps_num
         start_time = time.time()
         total_steps = 0
         self.task_num += len(phase_tasks)
-        if ("advisor" in self.algorithm): self.epsilon = 0.9
+        # if ("advisor" in self.algorithm): self.epsilon = 0.9
         while True:
-            for formula in phase_tasks:  # run through each task like qrm
+            for formula in phase_tasks:  # run through each task by qrm
                 self.env.initialize(random_init=True)
                 state = self.env.get_state()  # get_state() function was redefined
                 u = self.memory_rm.dfa.ltl2state[formula]  # initial state
@@ -274,7 +276,7 @@ class LifelongLearning():
                     u_ = self.memory_rm.get_next_state(u, event)
                     r = self.memory_rm.get_reward(u, u_, state, action, state_, is_training=False)
                     if self.env.is_discrete:
-                        self.learn(state, action, state_, event)
+                        self.update_q_function(state, action, state_, event)
                     else:
                         ######## store (s,a,r,s') in the buffer for continuous cases ###########
                         self.update_buffer(state, action, r, state_, event)
@@ -292,7 +294,7 @@ class LifelongLearning():
                         self.plot_steps.append(max_episode_length)
                     elif (self.plot_reward[-1] - self.plot_reward[-max_episode_length]) != 0:
                         average_steps = max_episode_length / (
-                                    self.plot_reward[-1] - self.plot_reward[-max_episode_length])
+                                self.plot_reward[-1] - self.plot_reward[-max_episode_length])
                         self.plot_steps.append(average_steps)
                     else:
                         self.plot_steps.append(max_episode_length)
@@ -311,43 +313,43 @@ class LifelongLearning():
                 self.advisor_Q[u].eval = self.memory_rm.Q[u].eval.copy()
                 self.advisor_Q[u].tar = self.memory_rm.Q[u].tar.copy()
 
+    def qrm_test(self):
+        pass
+
 
 def run_lifelong(tasks,
-                 steps_num,
                  repeated_test_times,
                  env,
                  propositions,
                  label_set,
-                 gamma,
-                 alpha,
-                 epsilon,
-                 max_episode_length,
+                 params,
                  algorithm,
                  save_data=True,
-                 data_name="",
                  directory="data/"):
     if type(tasks[0]) != list:  # if tasks=[task1,task2,...], then convert to [[task1],[task2],...]
         temp_tasks = []
         for formula in tasks:
             temp_tasks.append([formula])
         tasks = temp_tasks
-    plot_result = np.zeros([len(tasks), repeated_test_times, steps_num])
+    plot_result_reward = np.zeros([len(tasks), repeated_test_times, params.steps_num])
+    plot_result_step = np.zeros([len(tasks), repeated_test_times, params.steps_num])
     for t in range(repeated_test_times):  # lifelong learning
         print("Independent Trail", t)
         np.random.seed(t)
         lifelong_model = LifelongLearning(env,
                                           propositions,
                                           label_set,
-                                          gamma, alpha, epsilon, algorithm)
+                                          params, algorithm)
         start = time.time()
-        for task_i in range(len(tasks)):
+        for phase_id in range(len(tasks)):
             new_states = []
-            phase_tasks = tasks[task_i]  # type(phase_tasks)=list
+            phase_tasks = tasks[phase_id]  # type(phase_tasks)=list
             for formula in phase_tasks:
                 new_states = lifelong_model.update_memory(formula, new_states)
-            lifelong_model.qrm_run(steps_num, max_episode_length, phase_tasks=phase_tasks)
+            lifelong_model.qrm_run(params, phase_tasks=phase_tasks)
             ############ store the reward ###############
-            plot_result[task_i, t, :] = np.array(lifelong_model.plot_reward)
+            plot_result_reward[phase_id, t, :] = np.array(lifelong_model.plot_reward)
+            plot_result_step[phase_id, t, :] = np.array(lifelong_model.plot_steps)
             ########### store the steps #################
             # plot_result[task_i, t, :] = np.array(lifelong_model.plot_steps)
             lifelong_model.plot_reward = []
@@ -355,10 +357,26 @@ def run_lifelong(tasks,
         print("Test times: ", t, algorithm, "Run time:", time.time() - start)
         # plot_ave=np.average(plot_result,axis=1)
         # plot_std=np.std(plot_result,axis=1)
-    if use_normalize:
-        data_name = directory + data_name + algorithm + "norm.npy"
-    else:
-        data_name = directory + data_name + algorithm + ".npy"
+
+    ######### save the result #################
+
     if save_data:
-        np.save(data_name, plot_result)
-    return plot_result
+        projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
+        data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory)
+        if not os.path.isdir(data_path):
+            os.mkdir(data_path)
+
+        data_path1 = os.path.join(data_path, "reward")
+        data_path2 = os.path.join(data_path, "steps")
+
+        if not os.path.isdir(data_path1):
+            os.mkdir(data_path1)
+        if not os.path.isdir(data_path2):
+            os.mkdir(data_path2)
+
+        if params.use_normalize:
+            data_name = algorithm + "norm.npy"
+        else:
+            data_name = algorithm + ".npy"
+        np.save(os.path.join(data_path1, data_name), plot_result_reward)
+        np.save(os.path.join(data_path2, data_name), plot_result_step)

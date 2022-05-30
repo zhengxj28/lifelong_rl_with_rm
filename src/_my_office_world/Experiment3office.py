@@ -1,10 +1,13 @@
 '''
 Examine the effect of LLRM model in MineCraft
 '''
-import numpy as np
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
 from src._my_lifelong import *
 from src._my_plot_assistant import *
+from src.params import Parameters
 
 if __name__ == '__main__':
     from worlds.office_world import *
@@ -13,7 +16,7 @@ if __name__ == '__main__':
     is_plot = False
     if is_plot:
         plot_lifelong(title="Experiment3",
-                      data_name="E3",
+                      directory="office",
                       alg_list=["QRM", "QRMrs", "TQRM", "TQRMrs"],
                       plot_task_index=[i for i in range(3)],
                       to_steps=True,
@@ -37,27 +40,23 @@ if __name__ == '__main__':
                  [('then', c, o), ('then', m, o)],
                  [('then', ('and', c, m), o), ('then', B, A)],
                  ]
-        steps_num = 30000
         repeated_test_times = 20
         propositions = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
         label_set = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', '']
-        gamma = 0.9
-        alpha = 1.0
-        epsilon = 0.1
-        max_episode_length = 200
+        params = Parameters(steps_num=30000,
+                            gamma=0.9,
+                            alpha=1.0,
+                            epsilon=0.1,
+                            max_episode_length=200,
+                            use_normalize=True)
         save_data = True
-        data_name = "E3"
-        for algorithm in ["QRM", "QRMrs", "TQRM", "TQRMrs"]:
+        for algorithm in ["QRM", "QRMrs", "TQRMworst", "TQRMbest", "boolean"]:
             run_lifelong(tasks,
-                         steps_num=steps_num,
                          repeated_test_times=repeated_test_times,
                          env=office_env,
                          propositions=propositions,
                          label_set=label_set,
-                         gamma=gamma,
-                         alpha=alpha,
-                         epsilon=epsilon,
-                         max_episode_length=max_episode_length,
+                         params=params,
                          algorithm=algorithm,
                          save_data=save_data,
-                         data_name=data_name)
+                         directory="office")
