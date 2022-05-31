@@ -13,11 +13,14 @@ if __name__ == '__main__':
     from worlds.office_world import *
     import matplotlib.pyplot as plt
 
-    is_plot = False
+    is_plot = 1
     if is_plot:
         plot_lifelong(title="Experiment3",
                       directory="office",
-                      alg_list=["QRM", "QRMrs", "TQRM", "TQRMrs"],
+                      alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", "boolean"],
+                      legend_list=["QRM", "QRM+RS", "LSRM-best", "LSRM-worst", "Boolean"],
+                      steps_num=30000,
+                      smooth_fac=0.9,
                       plot_task_index=[i for i in range(3)],
                       to_steps=True,
                       save_fig=False,
@@ -50,7 +53,10 @@ if __name__ == '__main__':
                             max_episode_length=200,
                             use_normalize=True)
         save_data = True
-        for algorithm in ["QRM", "QRMrs", "TQRMworst", "TQRMbest", "boolean"]:
+        for algorithm in ["QRM", "QRMrs"]:
+        # for algorithm in ["TQRMworst", "TQRMbest"]:
+        # for algorithm in ["boolean"]:
+            print(algorithm)
             run_lifelong(tasks,
                          repeated_test_times=repeated_test_times,
                          env=office_env,

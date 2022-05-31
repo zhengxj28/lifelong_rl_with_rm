@@ -2,12 +2,14 @@ from src._my_reward_machine import RewardMachine
 from src.dfa import DFA
 from src._my_network import device
 from src.transfer_utils import *
+
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
 import time, os
 
+test_steps = 100
 
 class LifelongLearning():
     def __init__(self, env, propositions, label_set, params, algorithm, use_normalize=True):
@@ -331,8 +333,8 @@ def run_lifelong(tasks,
         for formula in tasks:
             temp_tasks.append([formula])
         tasks = temp_tasks
-    plot_result_reward = np.zeros([len(tasks), repeated_test_times, params.steps_num])
-    plot_result_step = np.zeros([len(tasks), repeated_test_times, params.steps_num])
+    result_reward = np.zeros([len(tasks), repeated_test_times, params.steps_num])
+    result_step = np.zeros([len(tasks), repeated_test_times, params.steps_num])
     for t in range(repeated_test_times):  # lifelong learning
         print("Independent Trail", t)
         np.random.seed(t)
@@ -348,35 +350,35 @@ def run_lifelong(tasks,
                 new_states = lifelong_model.update_memory(formula, new_states)
             lifelong_model.qrm_run(params, phase_tasks=phase_tasks)
             ############ store the reward ###############
-            plot_result_reward[phase_id, t, :] = np.array(lifelong_model.plot_reward)
-            plot_result_step[phase_id, t, :] = np.array(lifelong_model.plot_steps)
+            result_reward[phase_id, t, :] = np.array(lifelong_model.plot_reward)
+            result_step[phase_id, t, :] = np.array(lifelong_model.plot_steps)
             ########### store the steps #################
             # plot_result[task_i, t, :] = np.array(lifelong_model.plot_steps)
             lifelong_model.plot_reward = []
             lifelong_model.plot_steps = []
         print("Test times: ", t, algorithm, "Run time:", time.time() - start)
-        # plot_ave=np.average(plot_result,axis=1)
-        # plot_std=np.std(plot_result,axis=1)
+
+    ########### data processing ############
+    plot_result_reward = result_reward[:, :, ::test_steps]
+    plot_result_step = result_step[:, :, ::test_steps]
 
     ######### save the result #################
+    projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
+    data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory)
+    if not os.path.isdir(data_path):
+        os.mkdir(data_path)
 
-    if save_data:
-        projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
-        data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory)
-        if not os.path.isdir(data_path):
-            os.mkdir(data_path)
+    data_path1 = os.path.join(data_path, "reward")
+    data_path2 = os.path.join(data_path, "steps")
 
-        data_path1 = os.path.join(data_path, "reward")
-        data_path2 = os.path.join(data_path, "steps")
+    if not os.path.isdir(data_path1):
+        os.mkdir(data_path1)
+    if not os.path.isdir(data_path2):
+        os.mkdir(data_path2)
 
-        if not os.path.isdir(data_path1):
-            os.mkdir(data_path1)
-        if not os.path.isdir(data_path2):
-            os.mkdir(data_path2)
-
-        if params.use_normalize:
-            data_name = algorithm + "norm.npy"
-        else:
-            data_name = algorithm + ".npy"
-        np.save(os.path.join(data_path1, data_name), plot_result_reward)
-        np.save(os.path.join(data_path2, data_name), plot_result_step)
+    if params.use_normalize:
+        data_name = algorithm + "norm.npy"
+    else:
+        data_name = algorithm + ".npy"
+    np.save(os.path.join(data_path1, data_name), plot_result_reward)
+    np.save(os.path.join(data_path2, data_name), plot_result_step)

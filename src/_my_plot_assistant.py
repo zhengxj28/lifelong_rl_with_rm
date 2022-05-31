@@ -4,22 +4,7 @@ from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import os
 
-
-def smooth(array, weight):
-    s_array = np.zeros(array.shape)
-    s_array[0] = array[0]
-    for i in range(1, array.shape[0]):
-        s_array[i] = weight * s_array[i - 1] + (1 - weight) * array[i]
-    return s_array
-
-
-def reward2step(plot_reward, max_episode_length):
-    # plot_reward.shape=[steps_num]
-    plot_steps = max_episode_length * np.ones(plot_reward.shape)
-    cum_rewards = plot_reward[max_episode_length:] - plot_reward[:-max_episode_length]
-    plot_steps[max_episode_length:] = max_episode_length / cum_rewards
-    plot_steps[np.isinf(plot_steps)] = max_episode_length
-    return plot_steps
+from src.data_utils import *
 
 
 def plot_eval_transfer(title, data_name, alg_list, plot_task_index, to_steps=True, save_fig=True,
@@ -104,7 +89,7 @@ def plot_eval_transfer(title, data_name, alg_list, plot_task_index, to_steps=Tru
 def plot_op_laws(title, data_name, data_index,
                  to_steps=True, save_fig=True, use_normalize=True, directory="data/", max_episode_length=200):
     legend_list = ["QRM", "QRM+RS", "Best Representation", "Other Representation(s)"]
-
+    projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
     plot_qrm = np.load(directory + data_name + "_" + str(data_index[0]) + "QRMnorm.npy")
     plot_qrmrs = np.load(directory + data_name + "_" + str(data_index[0]) + "QRMrsnorm.npy")
     plot_dict = {}
@@ -147,11 +132,10 @@ def plot_op_laws(title, data_name, data_index,
     plt.show()
 
 
-def plot_lifelong(title, directory, alg_list, plot_task_index,
+def plot_lifelong(title, directory, alg_list, legend_list, steps_num, smooth_fac, plot_task_index,
                   to_steps=True, save_fig=True, use_normalize=False, max_episode_length=200):
+    from src._my_lifelong import test_steps
     plot_list = []
-    # legend_list=alg_list
-    legend_list = ["QRM", "QRM+RS", "LSRM-worst", "LSRM-best", "Boolean"]
     projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
     if to_steps:
         data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory, "steps")
@@ -164,45 +148,54 @@ def plot_lifelong(title, directory, alg_list, plot_task_index,
             plot_list.append(np.load(os.path.join(data_path, alg_name + "norm.npy")))
         else:
             plot_list.append(np.load(os.path.join(data_path, alg_name + ".npy")))
-    # plot_list[i].shape=[len(tasks),repeated_test_times,steps_num]
+    # plot_list[i].shape=[len(tasks),repeated_test_times,x_num]
     subplot_row, subplot_col, subplot_index = 1, len(plot_task_index), 0
-    tasks_num, total_test_times, steps_num = plot_list[0].shape
+    tasks_num, total_test_times, x_num = plot_list[0].shape
     color_list = ["blue", "purple", "red", "green", "hotpink", "chocolate"]
 
-    plt.figure(figsize=(6 * subplot_col, 4))
+    fig = plt.figure(figsize=(6 * subplot_col, 4))
     plt.clf()
     for task_i in range(tasks_num):
         if task_i not in plot_task_index: continue
         subplot_index += 1
-        plt.subplot(subplot_row, subplot_col, subplot_index)
+        ax = plt.subplot(subplot_row, subplot_col, subplot_index)
         plt.title("Phase " + str(task_i + 1))
         if subplot_index == 1:
             plt.ylabel("Steps to Complete Task") if to_steps else plt.ylabel("Cumulative Rewards")
         if subplot_index == subplot_col // 2 + 1: plt.xlabel("Training Steps")
         for algorithm_i in range(len(plot_list)):
-            plot_i = plot_list[algorithm_i][task_i, :, :]
-            repeated_test_times, steps_num = plot_i.shape
-            # if to_steps:
-            #     plt.axis([0, steps_num, 0, max_episode_length + 10])
-            #     for n in range(repeated_test_times):
-            #         plot_i[n] = reward2step(plot_i[n], max_episode_length)
-            plot_ave = np.average(plot_i, axis=0)
-            plot_up = np.max(plot_i, axis=0)
-            plot_down = np.min(plot_i, axis=0)
+            plot_i = plot_list[algorithm_i][task_i, :, :int(steps_num/test_steps)]
+            repeated_test_times, x_num = plot_i.shape
+            plot_down, plot_ave, plot_up = data2median(plot_i)
             if to_steps:
-                weight = 0.999
+                weight = smooth_fac
                 plot_ave = smooth(plot_ave, weight)
                 plot_up = smooth(plot_up, weight)
                 plot_down = smooth(plot_down, weight)
-            x = np.linspace(0, steps_num - 1, steps_num)
+            x = test_steps * np.linspace(0, x_num - 1, x_num)
             plt.fill_between(x, plot_down, plot_up, color=color_list[algorithm_i], alpha=0.1)
             linewidth = 2
             if subplot_index == subplot_col // 2 + 1:
-                plt.plot(plot_ave,
+                plt.plot(x, plot_ave,
                          color=color_list[algorithm_i], linewidth=linewidth, label=legend_list[algorithm_i])
             else:
-                plt.plot(plot_ave, color=color_list[algorithm_i], linewidth=linewidth)
+                plt.plot(x, plot_ave, color=color_list[algorithm_i], linewidth=linewidth)
+
+        if steps_num > 100000:
+            ticks = np.append(x[::500], np.max(x)+test_steps) #[0,100000,200000,300000,400000]
+        else:
+            ticks = np.append(x[::100], np.max(x)+test_steps)  #[0, 10000, 20000, 30000]
+        labels = [str(int(tick / 1000)) + 'k' for tick in ticks]
+        plt.setp(ax, xticks=ticks, xticklabels=labels)
+
         if subplot_index == subplot_col // 2 + 1:
-            plt.legend(bbox_to_anchor=(0.5, 1.06), loc="lower center", ncol=len(plot_list))
+            plt.legend(bbox_to_anchor=(0.5, 1.05), loc="lower center", ncol=len(plot_list))
+    # plt.subplots_adjust(left=0.06,
+    #                     bottom=0.25,
+    #                     right=0.98,
+    #                     top=0.90,
+    #                     wspace=0.25,
+    #                     hspace=0.36)
+    # fig.tight_layout()
     if save_fig: plt.savefig(os.path.join(projectDir, "Figure", directory + '.pdf'))
     plt.show()

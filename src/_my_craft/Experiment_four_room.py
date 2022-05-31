@@ -14,11 +14,14 @@ if __name__ == '__main__':
     from worlds.craft_world import *
     import matplotlib.pyplot as plt
 
-    is_plot = 0
+    is_plot = 1
     if is_plot:
         plot_lifelong(title="Four Room",
                       directory="four_room",
-                      alg_list=["QRM", "QRMrs", "TQRMworst", "TQRMbest", "boolean"],
+                      alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", "boolean"],
+                      legend_list=["QRM", "QRM+RS", "LSRM-best", "LSRM-worst", "Boolean"],
+                      steps_num=50000,
+                      smooth_fac=0.9,
                       plot_task_index=[0,1,2],
                       to_steps=True,
                       save_fig=True,
@@ -53,9 +56,9 @@ if __name__ == '__main__':
                             max_episode_length=500,
                             use_normalize=True)
 
-        # for algorithm in ["TQRM","TQRMrs"]:
-        # for algorithm in ["boolean"]:
-        for algorithm in ["QRM","QRMrs","TQRMworst","TQRMbest","boolean"]:
+        # for algorithm in ["QRM", "QRMrs"]:
+        # for algorithm in [ "TQRMworst", "TQRMbest"]:
+        for algorithm in ["boolean"]:
             print(algorithm)
             run_lifelong(tasks,
                          repeated_test_times=repeated_test_times,

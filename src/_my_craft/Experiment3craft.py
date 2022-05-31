@@ -15,11 +15,14 @@ if __name__ == '__main__':
 
     data_name = "E3"
 
-    is_plot = False
+    is_plot = True
     if is_plot:
         plot_lifelong("Experiment3",
                       directory="minecraft",
-                      alg_list=["QRM", "QRMrs", "TQRM", "TQRMrs"],
+                      alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", "boolean"],
+                      legend_list=["QRM", "QRM+RS", "LSRM-best", "LSRM-worst", "Boolean"],
+                      steps_num=400000,
+                      smooth_fac=0.99,
                       plot_task_index=[0, 2, 4],
                       to_steps=True,
                       save_fig=True,
@@ -56,9 +59,10 @@ if __name__ == '__main__':
                             max_episode_length=500,
                             use_normalize=True)
         save_data = True
-        # for algorithm in ["TQRM","TQRMrs"]:
-        # for algorithm in ["advisor"]:
-        for algorithm in ["QRM", "QRMrs", "TQRMworst", "TQRMbest", "boolean"]:
+        # for algorithm in ["QRM", "QRMrs"]:
+        # for algorithm in [ "TQRMworst", "TQRMbest"]:
+        for algorithm in ["boolean"]:
+            print(algorithm)
             run_lifelong(tasks,
                          repeated_test_times=repeated_test_times,
                          env=craft_env,
