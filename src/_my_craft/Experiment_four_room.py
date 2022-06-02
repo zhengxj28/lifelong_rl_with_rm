@@ -18,10 +18,10 @@ if __name__ == '__main__':
     if is_plot:
         plot_lifelong(title="Four Room",
                       directory="four_room",
-                      alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", "boolean"],
-                      legend_list=["QRM", "QRM+RS", "LSRM-best", "LSRM-worst", "Boolean"],
+                      alg_list=["QRM", "QRMrs", "equiv", "TQRMbest", "TQRMworst2", "boolean"],
+                      legend_list=["QRM", "QRM+RS","Equivalent", "LSRM-best", "LSRM-worst", "Logical"],
                       steps_num=50000,
-                      smooth_fac=0.9,
+                      smooth_fac=0.8,
                       plot_task_index=[0,1,2],
                       to_steps=True,
                       save_fig=True,
@@ -57,8 +57,9 @@ if __name__ == '__main__':
                             use_normalize=True)
 
         # for algorithm in ["QRM", "QRMrs"]:
-        # for algorithm in [ "TQRMworst", "TQRMbest"]:
-        for algorithm in ["boolean"]:
+        # for algorithm in ["TQRMworst", "TQRMbest"]:
+        # for algorithm in ["boolean"]:
+        for algorithm in ["TQRMworst2", "equiv"]:
             print(algorithm)
             run_lifelong(tasks,
                          repeated_test_times=repeated_test_times,

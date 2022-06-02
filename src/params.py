@@ -15,7 +15,7 @@ class Parameters:
         lr: float
             learning rate for adam optimizer
         max_timesteps_per_task: int
-            number of env steps to optimizer for per task
+            number of env steps(2021) to optimizer for per task
         buffer_size: int
             size of the replay buffer
         exploration_fraction: float
@@ -23,7 +23,7 @@ class Parameters:
         exploration_final_eps: float
             final value of random action probability
         train_freq: int
-            update the model every `train_freq` steps.
+            update the model every `train_freq` steps(2021).
             set to None to disable printing
         batch_size: int
             size of a batched sampled from replay buffer for training
@@ -31,11 +31,11 @@ class Parameters:
             how often to print out training progress
             set to None to disable printing
         learning_starts: int
-            how many steps of the model to collect transitions for before learning starts
+            how many steps(2021) of the model to collect transitions for before learning starts
         gamma: float
             discount factor
         target_network_update_freq: int
-            update the target network every `target_network_update_freq` steps.
+            update the target network every `target_network_update_freq` steps(2021).
         tabular_case: bool
             if True, we solve the problem without an state approx
             if False, we solve the problem using a neuralnet

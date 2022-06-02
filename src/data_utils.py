@@ -22,6 +22,7 @@ def data2median(data):
     # data.shape = [x_num, y_num]
     plot_25 = np.percentile(data, q=25, axis=0)
     plot_50 = np.median(data, axis=0)
+    # plot_50 = np.average(data, axis=0)
     plot_75 = np.percentile(data, q=75, axis=0)
     return plot_25, plot_50, plot_75
 

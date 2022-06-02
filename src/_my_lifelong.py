@@ -11,6 +11,12 @@ import time, os
 
 test_steps = 100
 
+def use_reward_shaping(algorithm):
+    if algorithm in ["QRMrs","TQRMrs",]:
+        return True
+    else:
+        return False
+
 class LifelongLearning():
     def __init__(self, env, propositions, label_set, params, algorithm, use_normalize=True):
         self.q_network_iteration = 1
@@ -26,16 +32,15 @@ class LifelongLearning():
         self.memory_rm = RewardMachine(env,
                                        dfa=DFA(ltl_formula='True', propositions=propositions, label_set=label_set),
                                        transfer=None,
-                                       use_rs="rs" in algorithm,
+                                       use_rs=use_reward_shaping(algorithm),
                                        algorithm=algorithm
                                        )
         # algorithm="TQRM" means QRM with knowledge transfer, i.e. LSRM
         if algorithm in ["QRM", "QRMrs", "equiv", "TQRM", "advisor", "TQRM_advisor", "TQRMrs",
-                         "TQRMaverage", "TQRMmax", "TQRMleft", "TQRMright", "TQRMworst", "TQRMbest", "boolean"]:
+                         "TQRMaverage", "TQRMmax", "TQRMleft", "TQRMright", "TQRMworst","TQRMworst2", "TQRMbest", "boolean"]:
             self.algorithm = algorithm  # algorithm is "QRM","equiv","TQRM","advisor","TQRM_advisor"
         else:  # default algorithm
-            self.algorithm = "equiv"
-            print("Inputted algorithm error. Default: equiv.")
+            raise ValueError("Invalid algorithm:", algorithm)
         self.advisor_Q = self.memory_rm.build_Q()
         self.task_num = 0  # number of learned tasks
 
@@ -145,6 +150,13 @@ class LifelongLearning():
                     return max_transfer(Q1, Q2)
                 elif formula[0] == 'then':
                     return right_transfer(Q1, Q2)
+            elif self.algorithm == "TQRMworst2":
+                if formula[0] == 'or':
+                    return average_transfer(Q1, Q2)
+                elif formula[0] == 'and':
+                    return max_transfer(Q1, Q2)
+                elif formula[0] == 'then':
+                    return left_transfer(Q1, Q2)
             ############# boolean task algebra #############
             elif self.algorithm == "boolean":
                 if formula[0] == 'and':

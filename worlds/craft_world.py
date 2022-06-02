@@ -137,7 +137,7 @@ class CraftWorld:
                 if str(obj) in class_ids:
                     ret.append(self._manhattan_distance(obj))
 
-        # Adding the number of steps before night (if need it)
+        # Adding the number of steps(2021) before night (if need it)
         if self.consider_night:
             ret.append(self._steps_before_dark())
 

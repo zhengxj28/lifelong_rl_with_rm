@@ -3,6 +3,7 @@ Examine the effect of LLRM model in MineCraft
 '''
 
 import sys
+
 sys.path.append("..")
 sys.path.append("../..")
 from src._my_lifelong import *
@@ -15,14 +16,15 @@ if __name__ == '__main__':
 
     data_name = "E3"
 
-    is_plot = True
+    is_plot = 1
     if is_plot:
         plot_lifelong("Experiment3",
                       directory="minecraft",
-                      alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", "boolean"],
-                      legend_list=["QRM", "QRM+RS", "LSRM-best", "LSRM-worst", "Boolean"],
+                      alg_list=["QRM", "QRMrs", "equiv","TQRMbest", "TQRMworst2", "boolean"],
+                      # alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", ],
+                      legend_list=["QRM", "QRM+RS","EQUIV", "LSRM-best", "LSRM-worst", "LOGICAL"],
                       steps_num=400000,
-                      smooth_fac=0.99,
+                      smooth_fac=0.995,
                       plot_task_index=[0, 2, 4],
                       to_steps=True,
                       save_fig=True,
@@ -60,8 +62,9 @@ if __name__ == '__main__':
                             use_normalize=True)
         save_data = True
         # for algorithm in ["QRM", "QRMrs"]:
-        # for algorithm in [ "TQRMworst", "TQRMbest"]:
-        for algorithm in ["boolean"]:
+        # for algorithm in ["TQRMworst", "TQRMbest"]:
+        # for algorithm in ["boolean"]:
+        for algorithm in ["TQRMworst2", "equiv"]:
             print(algorithm)
             run_lifelong(tasks,
                          repeated_test_times=repeated_test_times,

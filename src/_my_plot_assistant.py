@@ -151,6 +151,75 @@ def plot_lifelong(title, directory, alg_list, legend_list, steps_num, smooth_fac
     # plot_list[i].shape=[len(tasks),repeated_test_times,x_num]
     subplot_row, subplot_col, subplot_index = 1, len(plot_task_index), 0
     tasks_num, total_test_times, x_num = plot_list[0].shape
+    color_list = ["blue", "purple", "yellow", "red", "green", "hotpink", "chocolate"]
+
+    fig = plt.figure(figsize=(6 * subplot_col, 4))
+    plt.clf()
+    for task_i in range(tasks_num):
+        if task_i not in plot_task_index: continue
+        subplot_index += 1
+        ax = plt.subplot(subplot_row, subplot_col, subplot_index)
+        plt.title("Phase " + str(task_i + 1))
+        if subplot_index == 1:
+            plt.ylabel("Steps to Complete Task") if to_steps else plt.ylabel("Cumulative Rewards")
+        if subplot_index == subplot_col // 2 + 1: plt.xlabel("Training Steps")
+        for algorithm_i in range(len(plot_list)):
+            plot_i = plot_list[algorithm_i][task_i, :, :int(steps_num/test_steps)]
+            repeated_test_times, x_num = plot_i.shape
+            plot_down, plot_ave, plot_up = data2median(plot_i)
+            if to_steps:
+                weight = smooth_fac
+                plot_ave = smooth(plot_ave, weight)
+                plot_up = smooth(plot_up, weight)
+                plot_down = smooth(plot_down, weight)
+            x = test_steps * np.linspace(0, x_num - 1, x_num)
+            plt.fill_between(x, plot_down, plot_up, color=color_list[algorithm_i], alpha=0.1)
+            linewidth = 4 if alg_list[algorithm_i]=="TQRMbest" else 2
+            if subplot_index == subplot_col // 2 + 1:
+                plt.plot(x, plot_ave,
+                         color=color_list[algorithm_i], linewidth=linewidth, label=legend_list[algorithm_i])
+            else:
+                plt.plot(x, plot_ave, color=color_list[algorithm_i], linewidth=linewidth)
+
+        if steps_num > 100000:
+            ticks = np.append(x[::500], np.max(x)+test_steps) #[0,100000,200000,300000,400000]
+        else:
+            ticks = np.append(x[::100], np.max(x)+test_steps)  #[0, 10000, 20000, 30000]
+        labels = [str(int(tick / 1000)) + 'k' for tick in ticks]
+        plt.setp(ax, xticks=ticks, xticklabels=labels)
+
+        if subplot_index == subplot_col // 2 + 1:
+            plt.legend(bbox_to_anchor=(0.5, 1.05), loc="lower center", ncol=len(plot_list))
+    plt.subplots_adjust(left=0.05,
+                        bottom=0.12,
+                        right=0.98,
+                        top=0.88,
+                        wspace=0.09,
+                        hspace=0.2)
+    # fig.tight_layout()
+    if save_fig: plt.savefig(os.path.join(projectDir, "Figure", directory + '.pdf'))
+    plt.show()
+
+
+def plot_lifelong2(title, directory, alg_list, legend_list, steps_num, smooth_fac, plot_task_index,
+                  to_steps=True, save_fig=True, use_normalize=False, max_episode_length=200):
+    from src._my_lifelong import test_steps
+    plot_list = []
+    projectDir = os.path.abspath(os.path.join(os.getcwd(), os.pardir, os.pardir))
+    if to_steps:
+        data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory, "steps(2021)")
+    else:
+        data_path = os.path.join(projectDir, 'lifelong_rl_with_rm_data', directory, "reward")
+    for alg_name in alg_list:
+        # if use_normalize and alg_name not in ["QRM","QRMrs"]:
+        #     plot_list.append(np.load(directory + data_name + alg_name + "norm.npy"))
+        if use_normalize:
+            plot_list.append(np.load(os.path.join(data_path, alg_name + "norm.npy")))
+        else:
+            plot_list.append(np.load(os.path.join(data_path, alg_name + ".npy")))
+    # plot_list[i].shape=[len(tasks),repeated_test_times,x_num]
+    subplot_row, subplot_col, subplot_index = 1, len(plot_task_index), 0
+    tasks_num, total_test_times, x_num = plot_list[0].shape
     color_list = ["blue", "purple", "red", "green", "hotpink", "chocolate"]
 
     fig = plt.figure(figsize=(6 * subplot_col, 4))
@@ -174,7 +243,7 @@ def plot_lifelong(title, directory, alg_list, legend_list, steps_num, smooth_fac
                 plot_down = smooth(plot_down, weight)
             x = test_steps * np.linspace(0, x_num - 1, x_num)
             plt.fill_between(x, plot_down, plot_up, color=color_list[algorithm_i], alpha=0.1)
-            linewidth = 2
+            linewidth = 2 if alg_list[algorithm_i]=="TQRMbest" else 1
             if subplot_index == subplot_col // 2 + 1:
                 plt.plot(x, plot_ave,
                          color=color_list[algorithm_i], linewidth=linewidth, label=legend_list[algorithm_i])
@@ -190,12 +259,12 @@ def plot_lifelong(title, directory, alg_list, legend_list, steps_num, smooth_fac
 
         if subplot_index == subplot_col // 2 + 1:
             plt.legend(bbox_to_anchor=(0.5, 1.05), loc="lower center", ncol=len(plot_list))
-    # plt.subplots_adjust(left=0.06,
-    #                     bottom=0.25,
-    #                     right=0.98,
-    #                     top=0.90,
-    #                     wspace=0.25,
-    #                     hspace=0.36)
+    plt.subplots_adjust(left=0.05,
+                        bottom=0.12,
+                        right=0.98,
+                        top=0.88,
+                        wspace=0.09,
+                        hspace=0.2)
     # fig.tight_layout()
     if save_fig: plt.savefig(os.path.join(projectDir, "Figure", directory + '.pdf'))
     plt.show()

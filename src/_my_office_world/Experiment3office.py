@@ -17,13 +17,13 @@ if __name__ == '__main__':
     if is_plot:
         plot_lifelong(title="Experiment3",
                       directory="office",
-                      alg_list=["QRM", "QRMrs", "TQRMbest", "TQRMworst", "boolean"],
-                      legend_list=["QRM", "QRM+RS", "LSRM-best", "LSRM-worst", "Boolean"],
+                      alg_list=["QRM", "QRMrs", "equiv","TQRMbest", "TQRMworst", "boolean"],
+                      legend_list=["QRM", "QRM+RS","EQUIV", "LSRM-best", "LSRM-worst", "LOGICAL"],
                       steps_num=30000,
                       smooth_fac=0.9,
                       plot_task_index=[i for i in range(3)],
                       to_steps=True,
-                      save_fig=False,
+                      save_fig=True,
                       use_normalize=True)
     else:
         param = OfficeWorldParams()
@@ -53,9 +53,10 @@ if __name__ == '__main__':
                             max_episode_length=200,
                             use_normalize=True)
         save_data = True
-        for algorithm in ["QRM", "QRMrs"]:
+        # for algorithm in ["QRM", "QRMrs"]:
         # for algorithm in ["TQRMworst", "TQRMbest"]:
         # for algorithm in ["boolean"]:
+        for algorithm in ["TQRMworst2", "equiv"]:
             print(algorithm)
             run_lifelong(tasks,
                          repeated_test_times=repeated_test_times,
